@@ -1,119 +1,72 @@
 # Quiz Leaderboard System
 
-A Java solution for the SRM Internship Assignment — consumes a quiz API, deduplicates responses, aggregates scores, and submits a final leaderboard.
+This is my Java solution for the SRM internship coding assignment.
 
----
+The task was to call a quiz API 10 times, collect score events, remove duplicate events, calculate the total score for each participant, build the final leaderboard, and submit it once.
 
-## Problem Summary
+## What the problem is about
 
-- Poll a quiz API **10 times** (poll index 0–9) with a **5-second delay** between each call
-- Each response contains score events: `{ roundId, participant, score }`
-- The **same event can appear in multiple polls** (duplicates must be ignored)
-- Deduplication key: `roundId + participant`
-- Compute **total score per participant**, sort descending
-- Submit the leaderboard **once**
+The API returns quiz events in this format:
 
----
+```json
+{ "roundId": "R1", "participant": "Alice", "score": 10 }
 
-## How It Works
-
+The catch is that the same event can appear again in later API responses.
+So if duplicates are not handled properly, the final scores will be wrong.
 ```
-Poll 0 → Poll 1 → ... → Poll 9
-       ↓
-Collect all events
-       ↓
-Deduplicate using (roundId + participant)
-       ↓
-Aggregate scores per participant
-       ↓
-Sort leaderboard by totalScore (desc)
-       ↓
-POST /quiz/submit  (once)
+The required deduplication key is:
 ```
-
-### Deduplication Logic
-
-```java
-String key = roundId + "|" + participant;
-if (!deduplicatedEvents.containsKey(key)) {
-    deduplicatedEvents.put(key, score);  // new event
-} else {
-    // duplicate — silently ignored
-}
+roundId + participant
 ```
+Approach
+The solution follows these steps:     
+       Poll the API 10 times using poll=0 to poll=9
+       Wait 5 seconds between each poll as required
+       Read all events from each response
+       Ignore duplicate events using roundId + participant
+       Add valid scores to each participant’s total
+       Sort the leaderboard in descending order of total score
+       Submit the final leaderboard once
+       Deduplication idea
+       If the same roundId + participant combination appears again, it is skipped.
 
----
+Example:
+       R1 + Alice + 10 appears in poll 0
+       The same event appears again in poll 3
+       It should only be counted once
 
-## Prerequisites
+Tech used
+       Java
+       Java HttpClient
+       Jackson for JSON parsing
+       Maven for dependency management
+Prerequisites
+       Java 11 or above
+       Maven 3.6 or above
 
-- Java 11+
-- Maven 3.6+
-
----
-
-## Setup
-
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/your-username/quiz-leaderboard.git
-   cd quiz-leaderboard
-   ```
-
-2. **Set your registration number**
-
-   Open `src/main/java/com/quiz/QuizLeaderboard.java` and update:
-   ```java
-   private static final String REG_NO = "YOUR_REG_NO"; // e.g. "2024CS101"
-   ```
-
-3. **Build**
-   ```bash
-   mvn clean package
-   ```
-
-4. **Run**
-   ```bash
-   java -jar target/quiz-leaderboard-1.0-SNAPSHOT-jar-with-dependencies.jar
-   ```
-
----
-
-## Sample Output
-
+How to run
+Clone the repository
 ```
-=== Starting Quiz Leaderboard System ===
-
-Polling 1/10 (poll=0)...
-  Events received: 4 | New: 4 | Duplicates ignored: 0
-  Waiting 5 seconds...
-
-Polling 2/10 (poll=1)...
-  Events received: 4 | New: 2 | Duplicates ignored: 2
-  Waiting 5 seconds...
-...
-
-=== Final Leaderboard ===
-  Alice                : 120
-  Bob                  : 100
-  -------------------------
-  TOTAL SCORE (all users) : 220
-
-=== Submission Response ===
-{
-  "isCorrect" : true,
-  "isIdempotent" : true,
-  "submittedTotal" : 220,
-  "expectedTotal" : 220,
-  "message" : "Correct!"
-}
-
-✅ SUCCESS! Leaderboard is correct.
+git clone https://github.com/your-username/quiz-leaderboard.git
+cd quiz-leaderboard
 ```
 
----
+Build the project
+```
+mvn clean package
+```
 
-## Project Structure
+Run the application
+```
+mvn exec:java "-Dexec.mainClass=com.srm.quiz.QuizLeaderboardApp" "-Dexec.args=YOUR_REG_NO"
+```
 
+Example:
+```
+mvn exec:java "-Dexec.mainClass=com.srm.quiz.QuizLeaderboardApp" "-Dexec.args=RA2311030010031"
+```
+
+Project structure
 ```
 quiz-leaderboard/
 ├── pom.xml
@@ -121,18 +74,45 @@ quiz-leaderboard/
 └── src/
     └── main/
         └── java/
-            └── com/quiz/
-                └── QuizLeaderboard.java
+            └── com/
+                └── srm/
+                    └── quiz/
+                        └── QuizLeaderboardApp.java
 ```
 
----
+Notes
+       The program polls exactly 10 times
+       It keeps a set of processed roundId + participant keys
+       Duplicate events are ignored
+       Scores are aggregated correctly per participant
+       The final leaderboard is submitted only once
 
-## Key Design Decisions
+Why this solution is correct
+This solution matches the assignment requirements exactly:
+       10 polls
+       5-second delay between requests
+       deduplication based on roundId + participant
+       leaderboard sorted by total score
+       one final submission
 
-| Decision | Reason |
-|---|---|
-| `LinkedHashMap` for deduplication | Preserves insertion order, O(1) lookup |
-| Dedup key = `roundId + participant` | Matches spec exactly |
-| 5-second delay between polls | Mandatory per API requirements |
-| Single POST submit | Spec says submit only once |
-| Jackson for JSON | Lightweight, widely used |
+Sample outcome
+After processing all events, the application prints:
+-the final leaderboard
+-the total combined score
+-the API response from the submission endpoint
+
+If the submission is correct, the response should show something like:
+```
+{
+  "isCorrect": true,
+  "isIdempotent": true,
+  "submittedTotal": 220,
+  "expectedTotal": 220,
+  "message": "Correct!"
+}
+```
+
+
+
+
+
